@@ -29,13 +29,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.topbannerandbottomtextfield.ui.theme.TopBannerAndBottomTextFieldTheme
 
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
+import com.google.android.libraries.ads.mobile.sdk.MobileAds
+import com.google.android.libraries.ads.mobile.sdk.banner.AdSize
+import com.google.android.libraries.ads.mobile.sdk.banner.AdView
+import com.google.android.libraries.ads.mobile.sdk.banner.BannerAd
+import com.google.android.libraries.ads.mobile.sdk.banner.BannerAdEventCallback
+import com.google.android.libraries.ads.mobile.sdk.banner.BannerAdRequest
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError
+import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val backgroundScope = CoroutineScope(Dispatchers.IO)
+        backgroundScope.launch {
+            MobileAds.initialize(
+                this@MainActivity,
+                InitializationConfig.Builder("ca-app-pub-3940256099942544~3347511713").build()
+            ) {}
+        }
         //enableEdgeToEdge()
         setContent {
             TopBannerAndBottomTextFieldTheme {
@@ -79,25 +96,31 @@ fun TopBannerAd(
 
     val context = LocalContext.current
 
+    val adSize = AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, deviceWidth)
+    val adRequest = BannerAdRequest.Builder(adId, adSize).build()
+
     val adView = remember(deviceWidth) {
         AdView(context).apply {
             isFocusable = false
             isFocusableInTouchMode = false
-
-            adUnitId = adId
-
-            setAdSize(
-                AdSize.getLargeAnchoredAdaptiveBannerAdSize(
-                    context,
-                    deviceWidth
-                )
-            )
         }
     }
     if (loadAd)
         LaunchedEffect(adView) {
             adView.loadAd(
-                AdRequest.Builder().build()
+                adRequest,
+                object : AdLoadCallback<BannerAd> {
+                    override fun onAdLoaded(ad: BannerAd) {
+                        ad.adEventCallback =
+                            object : BannerAdEventCallback {
+                                override fun onAdImpression() {}
+
+                                override fun onAdClicked() {}
+                            }
+                    }
+
+                    override fun onAdFailedToLoad(adError: LoadAdError) {}
+                },
             )
         }
 
