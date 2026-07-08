@@ -2,18 +2,67 @@
 
 This repository contains a minimal reproducible example for an issue where an `OutlinedTextField` placed near the bottom of the screen is overlapped by the software keyboard after the app is minimized and restored.
 
-The issue appears only when a Google Mobile Ads `AdView` is loaded via `loadAd()` inside Jetpack Compose using `AndroidView`.
+The issue appears when a Google Mobile Ads `AdView` is loaded inside Jetpack Compose using `AndroidView`.
+
+The same behavior is reproduced with both the legacy Google Mobile Ads SDK and the GMA Next-Gen SDK.
 
 ## Environment
 
 Tested with:
 
-* Google Mobile Ads SDK: `25.4.0`
+* Google Mobile Ads SDK Legacy: `25.4.0`
+* GMA Next-Gen SDK: `1.2.1`
 * Jetpack Compose BOM: `2026.06.01`
 * `compileSdk = 37`
 * `targetSdk = 36`
 * Test AdMob App ID: `ca-app-pub-3940256099942544~3347511713`
 * Test Banner Ad Unit ID: `ca-app-pub-3940256099942544/9214589741`
+
+Legacy Google Mobile Ads SDK dependency:
+
+```toml
+adMobVersion = "25.4.0"
+
+play-services-ads = {
+    group = "com.google.android.gms",
+    name = "play-services-ads",
+    version.ref = "adMobVersion"
+}
+```
+
+GMA Next-Gen SDK dependency:
+
+```toml
+adsMobileSdk = "1.2.1"
+
+ads-mobile-sdk = {
+    group = "com.google.android.libraries.ads.mobile.sdk",
+    name = "ads-mobile-sdk",
+    version.ref = "adsMobileSdk"
+}
+```
+
+## GMA Next-Gen SDK test
+
+The same minimal sample was also migrated to **GMA Next-Gen SDK**.
+
+A separate branch is available here:
+
+```text
+gmanext-gen-sdk
+```
+
+Result: the issue is still reproducible with GMA Next-Gen SDK.
+
+This means the issue does not appear to be limited to the legacy Google Mobile Ads SDK dependency:
+
+```kotlin
+com.google.android.gms:play-services-ads
+```
+
+The same behavior is reproduced when using the newer GMA Next-Gen SDK `AdView` embedded in Jetpack Compose via `AndroidView`.
+
+The reproduction steps are the same as in the main branch.
 
 ## Devices / Android versions
 
@@ -91,7 +140,7 @@ Result: issue disappears.
 
 The issue appears to be caused by the interaction between:
 
-* Google Mobile Ads SDK `AdView`
+* Google Mobile Ads `AdView` in both legacy and Next-Gen SDKs
 * `AdView.loadAd()`
 * Jetpack Compose `AndroidView`
 * Android software keyboard / IME lifecycle
@@ -104,10 +153,29 @@ The issue does not appear to be caused by:
 * `AndroidView` itself
 * `AdView` without calling `loadAd()`
 
-The strongest evidence is that commenting out only this line makes the issue disappear:
+The strongest evidence is that commenting out only the ad loading call makes the issue disappear.
+
+Legacy Google Mobile Ads SDK example:
 
 ```kotlin
 adView.loadAd(
     AdRequest.Builder().build()
+)
+```
+
+GMA Next-Gen SDK example:
+
+```kotlin
+adView.loadAd(
+    adRequest,
+    object : AdLoadCallback<BannerAd> {
+        override fun onAdLoaded(ad: BannerAd) {
+            // Ad loaded
+        }
+
+        override fun onAdFailedToLoad(adError: LoadAdError) {
+            // Ad failed to load
+        }
+    }
 )
 ```
